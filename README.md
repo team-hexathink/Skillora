@@ -31,7 +31,7 @@ We aim to:
 
 | Layer | Technology |
 |-------|-------------|
-| **Frontend** | HTML, CSS, JavaScript, React (optional) |
+| **Frontend** | HTML, CSS, JavaScript, React |
 | **Backend** | Node.js / Express |
 | **Database** | MongoDB / PostgreSQL |
 | **Authentication** | JWT / OAuth 2.0 |
