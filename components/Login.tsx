@@ -15,22 +15,22 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToSignUp }) => {
   const [messageClass, setMessageClass] = useState('');
 
   useEffect(() => {
-    const savedUsername = localStorage.getItem("savedUsername");
+    const savedUsername = typeof window !== 'undefined' ? localStorage.getItem('savedUsername') : null;
     if (savedUsername) {
       setUsername(savedUsername);
       setRememberMe(true);
     }
   }, []);
-  
+
   const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setUsername(e.target.value);
     setMessage('');
-  }
+  };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPassword(e.target.value);
     setMessage('');
-  }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,30 +38,60 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToSignUp }) => {
 
     if (loginResult.success) {
       if (rememberMe) {
-        localStorage.setItem("savedUsername", username);
+        localStorage.setItem('savedUsername', username);
       } else {
-        localStorage.removeItem("savedUsername");
+        localStorage.removeItem('savedUsername');
       }
-      setMessage("✅ Login Successful!");
-      setMessageClass("strong");
+      setMessage('✅ Login Successful!');
+      setMessageClass('strong');
       setTimeout(() => {
         onLoginSuccess(username);
       }, 1000);
     } else {
-      setMessage(loginResult.message || "Invalid credentials.");
-      setMessageClass("weak");
+      setMessage(loginResult.message || 'Invalid credentials.');
+      setMessageClass('weak');
+    }
+  };
+
+  // small keyboard accessibility for the eye icon
+  const toggleShowPassword = () => setShowPassword(prev => !prev);
+  const onShowPasswordKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleShowPassword();
     }
   };
 
   return (
     <>
       <style>{`
+        :root {
+          /* Global color tokens (fallbacks provided inline below) */
+          --bg: #ffffff;
+          --accent1: #60a5fa;
+          --accent2: #22c55e;
+          --text-default: #111827;
+          --primary: #1e3a8a;
+          --text-shadow: 2px 2px 15px rgba(0,0,0,0.2);
+          --card-bg: rgba(255, 255, 255, 0.3);
+          --border: #d1d5db;
+          --muted-paragraph: #374151;
+          --input-bg: rgba(255,255,255,0.8);
+          --accent: #3b82f6;
+          --muted-text: #6b7280;
+          --status-rejected: #ef4444;
+          --status-interviewing: #f59e0b;
+          --status-offered: #22c55e;
+          --btn-success: #22c55e;
+          --btn-success-hover: #16a34a;
+        }
+
         .login-page-body {
           min-height: 100vh;
           display: flex;
           justify-content: center;
           align-items: center;
-          background: #ffffff;
+          background: var(--bg, #ffffff);
           overflow: hidden;
           position: relative;
           font-family: "Poppins", sans-serif;
@@ -78,13 +108,13 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToSignUp }) => {
         }
 
         .float1 {
-          background: #60a5fa;
+          background: var(--accent1, #60a5fa);
           top: 10%;
           left: 15%;
         }
 
         .float2 {
-          background: #22c55e;
+          background: var(--accent2, #22c55e);
           bottom: 10%;
           right: 15%;
           animation-delay: 3s;
@@ -102,7 +132,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToSignUp }) => {
           width: 90%;
           max-width: 1200px;
           padding: 40px;
-          color: #111827;
+          color: var(--text-default, #111827);
           position: relative;
           z-index: 2;
         }
@@ -117,8 +147,8 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToSignUp }) => {
         .illustration h1 {
           font-size: 100px;
           font-weight: 800;
-          color: #1e3a8a;
-          text-shadow: 2px 2px 15px rgba(0,0,0,0.2);
+          color: var(--primary, #1e3a8a);
+          text-shadow: var(--text-shadow, 2px 2px 15px rgba(0,0,0,0.2));
           animation: floatText 4s ease-in-out infinite alternate;
         }
 
@@ -129,11 +159,11 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToSignUp }) => {
 
         .login-box {
           flex: 1;
-          background: rgba(255, 255, 255, 0.3);
+          background: var(--card-bg, rgba(255, 255, 255, 0.3));
           padding: 50px;
           border-radius: 16px;
-          color: #111827;
-          border: 2px solid #d1d5db;
+          color: var(--text-default, #111827);
+          border: 2px solid var(--border, #d1d5db);
           backdrop-filter: blur(10px);
           max-width: 500px;
         }
@@ -142,11 +172,11 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToSignUp }) => {
           font-size: 32px;
           font-weight: 600;
           margin-bottom: 10px;
-          color: #111827;
+          color: var(--text-default, #111827);
         }
 
         .login-box p {
-          color: #374151;
+          color: var(--muted-paragraph, #374151);
           margin-bottom: 25px;
           font-size: 16px;
         }
@@ -160,23 +190,23 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToSignUp }) => {
           display: block;
           font-size: 16px;
           margin-bottom: 8px;
-          color: #111827;
+          color: var(--text-default, #111827);
           text-align: left;
         }
 
         .input-group input {
           width: 100%;
           padding: 16px;
-          border: 2px solid #d1d5db;
+          border: 2px solid var(--border, #d1d5db);
           border-radius: 8px;
           outline: none;
-          background: rgba(255,255,255,0.8);
+          background: var(--input-bg, rgba(255,255,255,0.8));
           font-size: 16px;
-          color: #111827;
+          color: var(--text-default, #111827);
         }
 
         .input-group input:focus {
-          border-color: #3b82f6;
+          border-color: var(--accent, #3b82f6);
         }
 
         .show-password {
@@ -185,7 +215,8 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToSignUp }) => {
           top: 50px;
           cursor: pointer;
           font-size: 18px;
-          color: #6b7280;
+          color: var(--muted-text, #6b7280);
+          user-select: none;
         }
 
         .strength {
@@ -195,9 +226,9 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToSignUp }) => {
           text-align: left;
         }
 
-        .weak { color: #ef4444; }
-        .medium { color: #f59e0b; }
-        .strong { color: #22c55e; }
+        .weak { color: var(--status-rejected, #ef4444); }
+        .medium { color: var(--status-interviewing, #f59e0b); }
+        .strong { color: var(--status-offered, #22c55e); }
 
         .remember {
           display: flex;
@@ -205,7 +236,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToSignUp }) => {
           gap: 8px;
           margin-bottom: 20px;
           font-size: 16px;
-          color: #111827;
+          color: var(--text-default, #111827);
         }
 
         .login-btn {
@@ -213,7 +244,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToSignUp }) => {
           padding: 16px;
           border: none;
           border-radius: 8px;
-          background: #22c55e;
+          background: var(--btn-success, #22c55e);
           color: white;
           font-size: 18px;
           font-weight: 600;
@@ -222,7 +253,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToSignUp }) => {
         }
 
         .login-btn:hover {
-          background: #16a34a;
+          background: var(--btn-success-hover, #16a34a);
         }
 
         .extra-links {
@@ -230,9 +261,9 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToSignUp }) => {
           margin-top: 15px;
           font-size: 16px;
         }
-        
+
         .extra-links a {
-          color: #1e3a8a;
+          color: var(--primary, #1e3a8a);
           text-decoration: underline;
           cursor: pointer;
         }
@@ -252,9 +283,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToSignUp }) => {
           }
         }
       `}</style>
+
       <div className="login-page-body">
-        <div className="float-bg float1"></div>
-        <div className="float-bg float2"></div>
+        <div className="float-bg float1" aria-hidden="true"></div>
+        <div className="float-bg float2" aria-hidden="true"></div>
 
         <div className="container">
           <div className="illustration">
@@ -268,28 +300,71 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToSignUp }) => {
             <form id="loginForm" onSubmit={handleSubmit}>
               <div className="input-group">
                 <label htmlFor="username">Username</label>
-                <input type="text" id="username" placeholder="Enter your username" required value={username} onChange={handleUsernameChange} />
+                <input
+                  type="text"
+                  id="username"
+                  placeholder="Enter your username"
+                  required
+                  value={username}
+                  onChange={handleUsernameChange}
+                />
               </div>
 
               <div className="input-group">
                 <label htmlFor="password">Password</label>
-                <input type={showPassword ? "text" : "password"} id="password" placeholder="Enter your password" required value={password} onChange={handlePasswordChange} />
-                <span className="show-password" onClick={() => setShowPassword(!showPassword)}>👁</span>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  id="password"
+                  placeholder="Enter your password"
+                  required
+                  value={password}
+                  onChange={handlePasswordChange}
+                />
+                <span
+                  className="show-password"
+                  role="button"
+                  tabIndex={0}
+                  onClick={toggleShowPassword}
+                  onKeyDown={onShowPasswordKeyDown}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? '🙈' : '👁️'}
+                </span>
               </div>
 
               <div className="remember">
-                <input type="checkbox" id="rememberMe" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
+                <input
+                  type="checkbox"
+                  id="rememberMe"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                />
                 <label htmlFor="rememberMe">Remember me</label>
               </div>
 
               <button className="login-btn" type="submit">Log In</button>
             </form>
-            
-            {message && <p className={`mt-4 text-center font-semibold ${messageClass}`}>{message}</p>}
+
+            {message && (
+              <p className={`mt-4 text-center font-semibold ${messageClass}`}>
+                {message}
+              </p>
+            )}
 
             <div className="extra-links">
-              <p><a href="#">Forgot Password?</a></p>
-              <p>Don't have an account? <a onClick={onSwitchToSignUp}>Sign Up</a></p>
+              <p><a href="#" onClick={(e) => e.preventDefault()}>Forgot Password?</a></p>
+              <p>
+                Don't have an account?{' '}
+                <a
+                  href="#signup"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onSwitchToSignUp();
+                  }}
+                >
+                  Sign Up
+                </a>
+              </p>
             </div>
           </div>
         </div>
