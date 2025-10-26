@@ -10,7 +10,9 @@ interface OnboardingProps {
 const Onboarding: React.FC<OnboardingProps> = ({ currentUser, onOnboardingComplete }) => {
   const [step, setStep] = useState(1);
   const { locale, setLocale, t } = useLocalization();
+  const [category, setCategory] = useState<'it' | 'non-it' | ''>('');
   const [role, setRole] = useState<'giver' | 'seeker' | ''>('');
+  const [selectedProfession, setSelectedProfession] = useState<string>('');
   const [profile, setProfile] = useState({
     name: '',
     email: '',
@@ -20,7 +22,43 @@ const Onboarding: React.FC<OnboardingProps> = ({ currentUser, onOnboardingComple
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // professions lists (keys map to localization keys)
+  const IT_PROFESSIONS = [
+    'professions.software',
+    'professions.design',
+    'professions.marketing',
+    'professions.sales',
+  ];
+
+  const NON_IT_PROFESSIONS = [
+    'professions.carpenter',
+    'professions.electrician',
+    'professions.plumber',
+    'professions.painter',
+    'professions.mason',
+    'professions.cleaning',
+    'professions.driver',
+    'professions.agriculture',
+    'professions.handyman',
+    'professions.hairdresser',
+    // include already existing keys that are non-IT
+    'professions.healthcare',
+    'professions.construction',
+  ];
+
+  const inputClass = (field?: string) => `w-full p-2 border rounded-md bg-white dark:bg-slate-800`;
+  const primaryButtonClass = 'px-4 py-2 bg-indigo-600 text-white rounded';
+  const backButtonClass = 'px-4 py-2 border rounded';
+
+  const renderError = (field: string) => {
+    if (errors[field]) {
+      return <p className="text-red-500 text-sm mt-1">{errors[field]}</p>;
+    }
+    return null;
+  };
+
   const handleNextStep = (nextStep: number) => {
+    // validation for step 1 (language)
     if (step === 1) {
       if (!locale) {
         setErrors({ language: t('onboarding.step1.error') });
@@ -28,192 +66,211 @@ const Onboarding: React.FC<OnboardingProps> = ({ currentUser, onOnboardingComple
       }
       setErrors({});
     }
+
+    // validation for step 2 (category)
+    if (step === 2) {
+      if (!category) {
+        setErrors({ category: t('onboarding.step2.error') || t('onboarding.errors.required') });
+        return;
+      }
+      setErrors({});
+    }
+
+    // validation for step 3 (role & profession for giver)
+    if (step === 3) {
+      if (!role) {
+        setErrors({ role: t('onboarding.step3.error') || t('onboarding.errors.required') });
+        return;
+      }
+      if (role === 'giver' && !selectedProfession) {
+        setErrors({ profession: t('onboarding.step3.professionRequired') || t('onboarding.errors.required') });
+        return;
+      }
+      setErrors({});
+    }
+
     setStep(nextStep);
   };
 
   const handleBackStep = (prevStep: number) => {
     setStep(prevStep);
-  }
+  };
 
-  const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-
-    let updatedProfile = { ...profile, [name]: value };
-
-    if (name === 'contact') {
-      updatedProfile[name] = value.replace(/\D/g, '');
-    }
-
-    setProfile(updatedProfile);
+    setProfile((p) => ({ ...p, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    // simple validation
     const newErrors: Record<string, string> = {};
-    const userType = role === 'seeker' ? 'worker' : 'employer';
+    if (!profile.name) newErrors.name = t('onboarding.errors.required');
+    if (!profile.email) newErrors.email = t('onboarding.errors.email') || t('onboarding.errors.required');
+    if (!profile.contact) newErrors.contact = t('onboarding.errors.contact') || t('onboarding.errors.required');
+    if (!profile.location) newErrors.location = t('onboarding.errors.required');
 
-    if (userType === 'worker') {
-        if (!profile.name.trim()) newErrors.name = t('onboarding.errors.required');
-    } else {
-        if (!profile.companyName.trim()) newErrors.companyName = t('onboarding.errors.required');
+    if (Object.keys(newErrors).length) {
+      setErrors(newErrors);
+      return;
     }
-    
-    if (!profile.email.trim().endsWith('@gmail.com')) newErrors.email = t('onboarding.errors.email');
-    if (!/^[0-9]{10}$/.test(profile.contact.trim())) newErrors.contact = t('onboarding.errors.contact');
-    if (!profile.location.trim()) newErrors.location = t('onboarding.errors.required');
 
-
-    setErrors(newErrors);
-
-    if (Object.keys(newErrors).length === 0) {
-      console.log("Onboarding data:", { role, profile });
-      setStep(4); // Use step 4 as the final "loading" step
-      
-      const finalProfile: Partial<WorkerProfile & EmployerProfile> = {
-          username: currentUser.username,
-          email: profile.email,
-          contact: profile.contact,
-          location: profile.location,
-          // Placeholder data for fields no longer in form
-          avatarUrl: 'https://picsum.photos/seed/newuser/200',
-          logoUrl: 'https://picsum.photos/seed/newcompany/100',
-          bio: 'A new member of the GlobalFair Work community!',
-          about: 'A new company on the GlobalFair Work platform.',
-          skills: [],
-          experience: [],
-          education: [],
-          portfolio: [],
-      };
-
-      if (userType === 'worker') {
-          finalProfile.name = profile.name;
-          finalProfile.title = "New Professional";
-      } else {
-          finalProfile.companyName = profile.companyName;
-          finalProfile.industry = "General";
-      }
-      
-      setTimeout(() => {
-        onOnboardingComplete(finalProfile, userType);
-      }, 2000);
-    }
+    setErrors({});
+    // pass onboarding data up
+    onOnboardingComplete({
+      locale,
+      category,
+      role,
+      profession: selectedProfession,
+      profile,
+    });
+    setStep(5); // final step
   };
 
-  const renderError = (fieldName: string) => {
-    return errors[fieldName] ? <div className="text-red-500 text-sm text-left mt-1">{errors[fieldName]}</div> : null;
-  }
-  
-  const inputClass = (fieldName: string) => `w-full p-3 mt-1.5 rounded-lg border bg-slate-50 dark:bg-slate-700 text-base focus:outline-none focus:ring-2 transition ${errors[fieldName] ? 'border-red-500 focus:ring-red-200' : 'border-gray-300 dark:border-slate-600 focus:border-teal-500 focus:ring-teal-200'}`;
-
-  const backButtonClass = "border border-gray-300 dark:border-slate-600 text-gray-800 dark:text-slate-100 font-bold w-full p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors";
-  const primaryButtonClass = "bg-teal-500 text-white font-bold w-full p-3 rounded-lg hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
+  // helper to render profession buttons
+  const renderProfessions = (list: string[]) => (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
+      {list.map((key) => {
+        const value = t(key);
+        const isSelected = selectedProfession === key;
+        return (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setSelectedProfession(key)}
+            className={`px-3 py-2 rounded-lg border-2 text-left transition-colors ${isSelected ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 dark:border-slate-600 text-gray-800 dark:text-slate-100 hover:border-indigo-400 dark:hover:border-indigo-500'}`}
+          >
+            {value}
+          </button>
+        );
+      })}
+    </div>
+  );
 
   return (
-    <div className="bg-slate-50 dark:bg-slate-900 min-h-screen flex items-center justify-center p-4 font-sans transition-colors duration-300">
-      <div className="bg-white dark:bg-slate-800 p-8 sm:p-12 rounded-2xl shadow-xl w-full max-w-lg text-center transition-all duration-500">
-        <h1 className="text-teal-500 text-4xl font-extrabold mb-8 tracking-wide">{t('appName')}</h1>
-
-        {step === 1 && (
-          <div className="animate-fadeIn">
-            <h2 className="text-2xl text-gray-800 dark:text-slate-100 font-semibold mb-4">{t('onboarding.step1.title')}</h2>
-            <label htmlFor="language-select" className="block text-left font-medium text-gray-700 dark:text-slate-300 mt-2.5">{t('onboarding.step1.label')} <span className="text-red-500">*</span></label>
-            <select id="language-select" value={locale} onChange={(e) => setLocale(e.target.value)} className={inputClass('language')}>
-              <option value="">{t('onboarding.step1.selectPlaceholder')}</option>
-              <option value="en">English</option>
-              <option value="hi">हिन्दी (Hindi)</option>
-            </select>
-            {renderError('language')}
-            <button onClick={() => handleNextStep(2)} className={`${primaryButtonClass} mt-6`}>{t('onboarding.nextButton')}</button>
+    <div className="max-w-xl mx-auto p-4">
+      {step === 1 && (
+        <div className="animate-fadeIn">
+          <h2 className="text-2xl text-gray-800 dark:text-slate-100 font-semibold mb-4">{t('onboarding.step1.title')}</h2>
+          <label htmlFor="language-select" className="block text-left font-medium text-gray-700 dark:text-slate-300 mt-2.5">{t('onboarding.step1.label')} <span className="text-red-500">*</span></label>
+          <select id="language-select" value={locale} onChange={(e) => setLocale(e.target.value)} className={inputClass('language')}>
+            <option value="">{t('onboarding.step1.selectPlaceholder')}</option>
+            <option value="en">English</option>
+            <option value="hi">हिन्दी (Hindi)</option>
+          </select>
+          {renderError('language')}
+          <div className="flex gap-4 mt-6">
+            <button onClick={() => handleNextStep(2)} className={primaryButtonClass}>{t('onboarding.nextButton')}</button>
           </div>
-        )}
-        
-        {step === 2 && (
-          <div className="animate-fadeIn">
-            <h2 className="text-2xl text-gray-800 dark:text-slate-100 font-semibold mb-4">{t('onboarding.step2.title')}</h2>
-            <div className="flex flex-col sm:flex-row gap-4 mt-4">
-              <button
-                onClick={() => setRole('giver')}
-                className={`w-full p-4 rounded-lg font-bold border-2 transition-colors ${
-                  role === 'giver'
-                    ? 'bg-indigo-500 text-white border-indigo-500'
-                    : 'border-gray-300 dark:border-slate-600 text-gray-800 dark:text-slate-100 hover:border-indigo-400 dark:hover:border-indigo-500'
-                }`}
-              >
-                {t('onboarding.step2.hireButton')}
-              </button>
-              <button
-                onClick={() => setRole('seeker')}
-                className={`w-full p-4 rounded-lg font-bold border-2 transition-colors ${
-                  role === 'seeker'
-                    ? 'bg-teal-500 text-white border-teal-500'
-                    : 'border-gray-300 dark:border-slate-600 text-gray-800 dark:text-slate-100 hover:border-teal-400 dark:hover:border-teal-500'
-                }`}
-              >
-                {t('onboarding.step2.findJobButton')}
-              </button>
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className="animate-fadeIn">
+          <h2 className="text-2xl text-gray-800 dark:text-slate-100 font-semibold mb-4">{t('onboarding.step2.title')}</h2>
+          <div className="flex flex-col sm:flex-row gap-4 mt-4">
+            <button
+              onClick={() => setCategory('it')}
+              className={`w-full p-4 rounded-lg font-bold border-2 transition-colors ${category === 'it' ? 'bg-indigo-500 text-white border-indigo-500' : 'border-gray-300 dark:border-slate-600 text-gray-800 dark:text-slate-100 hover:border-indigo-400 dark:hover:border-indigo-500'}`}
+            >
+              {t('onboarding.step2.itButton')}
+            </button>
+            <button
+              onClick={() => setCategory('non-it')}
+              className={`w-full p-4 rounded-lg font-bold border-2 transition-colors ${category === 'non-it' ? 'bg-teal-500 text-white border-teal-500' : 'border-gray-300 dark:border-slate-600 text-gray-800 dark:text-slate-100 hover:border-teal-400 dark:hover:border-teal-500'}`}
+            >
+              {t('onboarding.step2.nonItButton')}
+            </button>
+          </div>
+
+          {renderError('category')}
+          <div className="flex gap-4 mt-6">
+            <button onClick={() => handleBackStep(1)} className={backButtonClass}>{t('onboarding.backButton')}</button>
+            <button onClick={() => handleNextStep(3)} className={primaryButtonClass}>{t('onboarding.nextButton')}</button>
+          </div>
+        </div>
+      )}
+
+      {step === 3 && (
+        <div className="animate-fadeIn">
+          <h2 className="text-2xl text-gray-800 dark:text-slate-100 font-semibold mb-4">{t('onboarding.step3.title')}</h2>
+          <div className="flex flex-col sm:flex-row gap-4 mt-4">
+            <button
+              onClick={() => { setRole('giver'); setSelectedProfession(''); }}
+              className={`w-full p-4 rounded-lg font-bold border-2 transition-colors ${role === 'giver' ? 'bg-indigo-500 text-white border-indigo-500' : 'border-gray-300 dark:border-slate-600 text-gray-800 dark:text-slate-100 hover:border-indigo-400 dark:hover:border-indigo-500'}`}
+            >
+              {t('onboarding.step3.hireButton')}
+            </button>
+            <button
+              onClick={() => { setRole('seeker'); setSelectedProfession(''); }}
+              className={`w-full p-4 rounded-lg font-bold border-2 transition-colors ${role === 'seeker' ? 'bg-teal-500 text-white border-teal-500' : 'border-gray-300 dark:border-slate-600 text-gray-800 dark:text-slate-100 hover:border-teal-400 dark:hover:border-teal-500'}`}
+            >
+              {t('onboarding.step3.findJobButton')}
+            </button>
+          </div>
+
+          {/* If user chose to hire (giver), show professions depending on category */}
+          {role === 'giver' && (
+            <div className="mt-6">
+              <h3 className="text-lg font-medium text-gray-800 dark:text-slate-100 mb-2">{t('onboarding.step3.chooseProfessionLabel')}</h3>
+              {category === 'it' ? renderProfessions(IT_PROFESSIONS) : renderProfessions(NON_IT_PROFESSIONS)}
+              {renderError('profession')}
             </div>
+          )}
+
+          <div className="flex gap-4 mt-6">
+            <button onClick={() => handleBackStep(2)} className={backButtonClass}>{t('onboarding.backButton')}</button>
+            <button onClick={() => handleNextStep(4)} className={primaryButtonClass} disabled={!role || (role === 'giver' && !selectedProfession)}>{t('onboarding.nextButton')}</button>
+          </div>
+        </div>
+      )}
+
+      {step === 4 && (
+        <div className="animate-fadeIn">
+          <h2 className="text-2xl text-gray-800 dark:text-slate-100 font-semibold mb-4">{t('onboarding.step4.title')}</h2>
+          <form onSubmit={handleSubmit} noValidate>
+            {role === 'seeker' ? (
+              <>
+                <label htmlFor="fullName" className="block text-left font-medium mt-2.5 text-gray-700 dark:text-slate-300">{t('onboarding.step4.fullNameLabel')} <span className="text-red-500">*</span></label>
+                <input type="text" id="fullName" name="name" value={profile.name} onChange={handleProfileChange} className={inputClass('name')} />
+                {renderError('name')}
+                <label htmlFor="email" className="block text-left font-medium mt-2.5 text-gray-700 dark:text-slate-300">{t('onboarding.step4.emailLabel')} <span className="text-red-500">*</span></label>
+                <input type="email" id="email" name="email" value={profile.email} onChange={handleProfileChange} className={inputClass('email')} />
+                {renderError('email')}
+              </>
+            ) : (
+              <>
+                <label htmlFor="companyName" className="block text-left font-medium mt-2.5 text-gray-700 dark:text-slate-300">{t('onboarding.step4.companyNameLabel')} <span className="text-red-500">*</span></label>
+                <input type="text" id="companyName" name="companyName" value={profile.companyName} onChange={handleProfileChange} className={inputClass('companyName')} />
+                {renderError('companyName')}
+                <label htmlFor="email" className="block text-left font-medium mt-2.5 text-gray-700 dark:text-slate-300">{t('onboarding.step4.emailLabel')} <span className="text-red-500">*</span></label>
+                <input type="email" id="email" name="email" value={profile.email} onChange={handleProfileChange} className={inputClass('email')} />
+                {renderError('email')}
+              </>
+            )}
+
+            <label htmlFor="contact" className="block text-left font-medium mt-2.5 text-gray-700 dark:text-slate-300">{t('onboarding.step4.contactLabel')} <span className="text-red-500">*</span></label>
+            <input type="text" id="contact" name="contact" value={profile.contact} onChange={handleProfileChange} className={inputClass('contact')} />
+            {renderError('contact')}
+
+            <label htmlFor="location" className="block text-left font-medium mt-2.5 text-gray-700 dark:text-slate-300">{t('onboarding.step4.locationLabel')} <span className="text-red-500">*</span></label>
+            <input type="text" id="location" name="location" value={profile.location} onChange={handleProfileChange} className={inputClass('location')} />
+            {renderError('location')}
+
             <div className="flex gap-4 mt-6">
-              <button onClick={() => handleBackStep(1)} className={backButtonClass}>{t('onboarding.backButton')}</button>
-              <button onClick={() => handleNextStep(3)} className={primaryButtonClass} disabled={!role}>{t('onboarding.nextButton')}</button>
+              <button type="button" onClick={() => handleBackStep(3)} className={backButtonClass}>{t('onboarding.backButton')}</button>
+              <button type="submit" className={primaryButtonClass}>{t('onboarding.finishButton')}</button>
             </div>
-          </div>
-        )}
+          </form>
+        </div>
+      )}
 
-        {step === 3 && (
-            <div className="animate-fadeIn">
-                <h2 className="text-2xl text-gray-800 dark:text-slate-100 font-semibold mb-4">{t('onboarding.step4.title')}</h2>
-                <form onSubmit={handleSubmit} noValidate>
-                    {role === 'seeker' ? (
-                      <>
-                        <label htmlFor="name" className="block text-left font-medium text-gray-700 dark:text-slate-300">{t('onboarding.step4.fullNameLabel')} <span className="text-red-500">*</span></label>
-                        <input type="text" id="name" name="name" value={profile.name} onChange={handleProfileChange} className={inputClass('name')} />
-                        {renderError('name')}
-                      </>
-                    ) : (
-                       <>
-                        <label htmlFor="companyName" className="block text-left font-medium text-gray-700 dark:text-slate-300">{t('onboarding.step4.companyNameLabel')} <span className="text-red-500">*</span></label>
-                        <input type="text" id="companyName" name="companyName" value={profile.companyName} onChange={handleProfileChange} className={inputClass('companyName')} />
-                        {renderError('companyName')}
-                      </>
-                    )}
-
-                    <label htmlFor="email" className="block text-left font-medium mt-2.5 text-gray-700 dark:text-slate-300">{t('onboarding.step4.emailLabel')} <span className="text-red-500">*</span></label>
-                    <input type="email" id="email" name="email" value={profile.email} onChange={handleProfileChange} placeholder="example@gmail.com" className={inputClass('email')} />
-                    {renderError('email')}
-                    
-                    <label htmlFor="contact" className="block text-left font-medium mt-2.5 text-gray-700 dark:text-slate-300">{t('onboarding.step4.contactLabel')} <span className="text-red-500">*</span></label>
-                    <input type="tel" id="contact" name="contact" value={profile.contact} onChange={handleProfileChange} maxLength={10} placeholder={t('onboarding.step4.contactPlaceholder')} className={inputClass('contact')} />
-                    {renderError('contact')}
-
-                    <label htmlFor="location" className="block text-left font-medium mt-2.5 text-gray-700 dark:text-slate-300">{t('onboarding.step4.locationLabel')} <span className="text-red-500">*</span></label>
-                    <input type="text" id="location" name="location" value={profile.location} onChange={handleProfileChange} className={inputClass('location')} />
-                    {renderError('location')}
-
-                    <div className="flex gap-4 mt-6">
-                        <button type="button" onClick={() => handleBackStep(2)} className={backButtonClass}>{t('onboarding.backButton')}</button>
-                        <button type="submit" className={primaryButtonClass}>{t('onboarding.finishButton')}</button>
-                    </div>
-                </form>
-            </div>
-        )}
-
-        {step === 4 && (
-            <div className="animate-fadeIn">
-                <h2 className="text-2xl text-gray-800 dark:text-slate-100 font-semibold mb-4">{t('onboarding.step5.title')}</h2>
-                <p className="text-gray-600 dark:text-slate-400">{t('onboarding.step5.subtitle')}</p>
-                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500 mx-auto mt-6"></div>
-            </div>
-        )}
-      </div>
-       <style>{`
-          @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-          .animate-fadeIn {
-            animation: fadeIn 0.5s ease-in-out;
-          }
-       `}</style>
+      {step === 5 && (
+        <div className="animate-fadeIn">
+          <h2 className="text-2xl text-gray-800 dark:text-slate-100 font-semibold mb-4">{t('onboarding.step5.title')}</h2>
+          <p className="text-gray-700 dark:text-slate-300">{t('onboarding.step5.subtitle')}</p>
+        </div>
+      )}
     </div>
   );
 };
